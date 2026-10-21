@@ -1,0 +1,119 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: #f5f6f8;
+    color: #333;
+}
+
+.header {
+    background: #ffffff;
+    padding: 16px 24px;
+    border-bottom: 1px solid #e1e4e8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.btn {
+    background-color: #0366d6;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn:hover {
+    background-color: #024ea4;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 20px auto;
+    padding: 0 16px;
+}
+
+.breadcrumbs {
+    margin-bottom: 20px;
+    font-size: 16px;
+}
+
+.breadcrumbs a {
+    color: #0366d6;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.breadcrumbs a:hover {
+    text-decoration: underline;
+}
+
+/* Сетка папок */
+.folders-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.folder-card {
+    background: #ffffff;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+    user-select: none;
+}
+
+.folder-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.folder-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+}
+
+/* Сетка фотографий */
+.photos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.photo-card {
+    background: #ffffff;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e1e4e8;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+}
+
+.photo-img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    display: block;
+    background-color: #eaecef;
+}
+
+.photo-info {
+    padding: 10px;
+    font-size: 13px;
+    color: #586069;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #8c959f;
+}

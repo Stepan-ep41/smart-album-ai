@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Умный Альбом</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header class="header">
+        <h1>Умный Альбом</h1>
+        <div class="stats-panel">
+            <span id="stats-text">Загрузка статистики...</span>
+            <button id="btn-scan" class="btn">Пересканировать папку</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Навигационная цепочка (Breadcrumbs) -->
+        <nav id="breadcrumbs" class="breadcrumbs"></nav>
+
+        <!-- Список вложенных альбомов/папок -->
+        <section id="folders-container" class="folders-grid"></section>
+
+        <!-- Сетка фотографий -->
+        <section id="photos-container" class="photos-grid"></section>
+
+        <div id="empty-state" class="empty-state" style="display: none;">
+            В этой папке пока нет файлов или подпапок.
+        </div>
+    </main>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
