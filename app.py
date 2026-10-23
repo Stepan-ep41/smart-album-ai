@@ -25,7 +25,7 @@ templates = Jinja2Templates(directory="ui/templates")
 @app.get("/")
 def read_root(request: Request):
     """Главная страница альбома."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(name="index.html", request=request)
 
 
 @app.get("/api/browse")
