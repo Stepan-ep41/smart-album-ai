@@ -96,6 +96,12 @@ body {
     overflow: hidden;
     border: 1px solid #e1e4e8;
     box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    cursor: default;
+}
+
+.photo-card:focus-visible {
+    outline: 2px solid #0969da;
+    outline-offset: 2px;
 }
 
 .photo-img {
@@ -104,12 +110,422 @@ body {
     object-fit: cover;
     display: block;
     background-color: #eaecef;
+    transition: opacity 0.15s;
+}
+
+.photo-card:hover .photo-img {
+    opacity: 0.9;
 }
 
 .photo-info {
     padding: 10px;
     font-size: 13px;
     color: #586069;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body.lightbox-open {
+    overflow: hidden;
+}
+
+/* Полноразмерный просмотр: занимает всё окно, без внешней рамки */
+.lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 0;
+}
+
+.lightbox[hidden] {
+    display: none;
+}
+
+.lightbox-backdrop {
+    position: absolute;
+    inset: 0;
+    background: #0d1117;
+}
+
+.lightbox-dialog {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    background: #0d1117;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.lightbox-toolbar {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px;
+    background: #161b22;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.lightbox-title {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 14px;
+    color: #8b949e;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.lightbox-controls {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+}
+
+.lightbox-toolbar .icon-btn {
+    color: #c9d1d9;
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.lightbox-toolbar .icon-btn:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.lightbox-toolbar .zoom-level {
+    color: #8b949e;
+}
+
+.lightbox-toolbar .btn-secondary {
+    color: #c9d1d9;
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.lightbox-toolbar .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    font-size: 19px;
+    line-height: 1;
+    color: #24292f;
+    background: #ffffff;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.icon-btn:hover {
+    background: #f3f4f6;
+}
+
+.zoom-level {
+    min-width: 52px;
+    font-size: 13px;
+    color: #586069;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.btn-secondary {
+    padding: 7px 12px;
+    font-size: 13px;
+    color: #24292f;
+    background: #ffffff;
+    border: 1px solid #d0d7de;
+}
+
+.btn-secondary:hover {
+    background: #f3f4f6;
+}
+
+.lightbox-viewport {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    overflow: hidden;
+    background: #0d1117;
+    touch-action: none;
+}
+
+.lightbox-viewport.can-pan {
+    cursor: grab;
+}
+
+.lightbox-viewport.is-panning {
+    cursor: grabbing;
+}
+
+/* Фото всегда рендерится в натуральном размере (1 px изображения =
+   1 CSS px), а вписывание в окно и зум выполняются трансформацией.
+   Иначе нельзя сделать «100%» равным 1:1 с пикселями монитора. */
+.lightbox-image {
+    flex: 0 0 auto;
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    opacity: 0;
+    user-select: none;
+    transform-origin: center center;
+    transition: opacity 0.15s;
+    will-change: transform;
+}
+
+.lightbox-image.is-loaded {
+    opacity: 1;
+}
+
+/* Навигация по краям фотографии */
+.photo-nav {
+    position: absolute;
+    top: 50%;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    font-size: 30px;
+    line-height: 1;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 50%;
+    cursor: pointer;
+    transform: translateY(-50%);
+    transition: background 0.15s, opacity 0.15s;
+}
+
+.photo-nav:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.photo-nav:disabled {
+    opacity: 0.25;
+    cursor: default;
+}
+
+.photo-nav[hidden] {
+    display: none;
+}
+
+.photo-nav-prev {
+    left: 16px;
+}
+
+.photo-nav-next {
+    right: 16px;
+}
+
+/* Кнопка «на весь экран» — слева снизу */
+.photo-fullscreen-btn {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.photo-fullscreen-btn:hover {
+    background: rgba(0, 0, 0, 0.75);
+}
+
+.photo-fullscreen-btn svg {
+    pointer-events: none;
+}
+
+.lightbox-image.can-pan {
+    cursor: grab;
+}
+
+.lightbox-viewport.is-panning .lightbox-image {
+    cursor: grabbing;
+}
+
+/* Полноэкранный режим: разворачиваем контейнер, а фото внутри него
+   масштабируем обычным transform — это работает во всех браузерах. */
+.lightbox-viewport:fullscreen {
+    width: 100vw;
+    height: 100vh;
+    background: #000000;
+}
+
+.lightbox-viewport:fullscreen::backdrop {
+    background: #000000;
+}
+
+/* Запасной вариант, если Fullscreen API недоступен */
+.lightbox-viewport.is-photo-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    width: 100vw;
+    height: 100vh;
+    background: #000000;
+}
+
+/* В полноэкранном режиме служебные кнопки не нужны */
+.lightbox-viewport:fullscreen .photo-nav,
+.lightbox-viewport:fullscreen .photo-fullscreen-btn,
+.lightbox-viewport.is-photo-fullscreen .photo-nav,
+.lightbox-viewport.is-photo-fullscreen .photo-fullscreen-btn {
+    display: none;
+}
+
+body.photo-fullscreen-open {
+    overflow: hidden;
+}
+
+.lightbox-status {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #c9d1d9;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 6px;
+    transform: translate(-50%, -50%);
+}
+
+.lightbox-status[hidden] {
+    display: none;
+}
+
+.lightbox-captions {
+    display: grid;
+    flex: 0 0 auto;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    max-height: 42vh;
+    padding: 16px;
+    overflow-y: auto;
+    background: #ffffff;
+    border-top: 1px solid #e1e4e8;
+}
+
+.caption-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.caption-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #57606a;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.caption-input {
+    width: 100%;
+    min-height: 72px;
+    max-height: 180px;
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 14px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    resize: vertical;
+}
+
+.caption-input:focus {
+    border-color: #0969da;
+    outline: 2px solid rgba(9, 105, 218, 0.2);
+}
+
+.caption-readonly {
+    min-height: 72px;
+    max-height: 180px;
+    padding: 8px 10px;
+    overflow-y: auto;
+    font-size: 14px;
+    color: #57606a;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    background: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+}
+
+.caption-footer {
+    display: flex;
+    grid-column: 1 / -1;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.caption-status {
+    min-height: 1em;
+    margin-right: auto;
+    font-size: 13px;
+    color: #1a7f37;
+}
+
+.caption-status.is-error {
+    color: #cf222e;
+}
+
+@media (max-width: 720px) {
+    .lightbox-captions {
+        grid-template-columns: 1fr;
+        max-height: 50vh;
+    }
+
+    .photo-nav {
+        width: 40px;
+        height: 40px;
+        font-size: 26px;
+    }
+
+    .photo-nav-prev {
+        left: 8px;
+    }
+
+    .photo-nav-next {
+        right: 8px;
+    }
+
+    .photo-fullscreen-btn {
+        bottom: 10px;
+        left: 10px;
+    }
 }
 
 .empty-state {

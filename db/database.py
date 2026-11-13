@@ -1,6 +1,6 @@
 import sqlite3
 from pathlib import Path
-from typing import List, Dict, Set
+from typing import List, Dict, Optional, Set
 
 
 class Database:
@@ -82,6 +82,37 @@ class Database:
         """
         with self._get_connection() as conn:
             return conn.execute(query, (parent_dir,)).fetchall()
+
+    def get_photo(self, photo_id: int) -> Optional[sqlite3.Row]:
+        """Возвращает одно фото по id вместе с описаниями."""
+        query = """
+        SELECT id, relative_path, parent_dir, is_processed,
+               auto_caption, manual_caption
+        FROM photos
+        WHERE id = ?
+        """
+        with self._get_connection() as conn:
+            return conn.execute(query, (photo_id,)).fetchone()
+
+    def update_manual_caption(
+        self, photo_id: int, caption: Optional[str]
+    ) -> Optional[sqlite3.Row]:
+        """
+        Обновляет ручное описание и возвращает обновленную запись.
+        None означает, что описание нужно очистить.
+        """
+        query = "UPDATE photos SET manual_caption = ? WHERE id = ?"
+        select_query = """
+        SELECT id, relative_path, parent_dir, is_processed,
+               auto_caption, manual_caption
+        FROM photos
+        WHERE id = ?
+        """
+        with self._get_connection() as conn:
+            conn.execute(query, (caption, photo_id))
+            row = conn.execute(select_query, (photo_id,)).fetchone()
+            conn.commit()
+            return row
 
     def get_stats(self) -> dict:
         """Общая статистика альбома."""

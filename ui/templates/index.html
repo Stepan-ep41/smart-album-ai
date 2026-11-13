@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>#Embedded</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/style.css?v=7">
 </head>
 <body>
     <header class="header">
@@ -30,6 +30,62 @@
         </div>
     </main>
 
-    <script src="/static/js/app.js"></script>
+    <!-- Полноразмерный просмотр фотографии -->
+    <div id="lightbox" class="lightbox" hidden>
+        <div class="lightbox-backdrop" data-lightbox-close></div>
+        <div class="lightbox-dialog" role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
+            <div class="lightbox-toolbar">
+                <div id="lightbox-title" class="lightbox-title"></div>
+                <div class="lightbox-controls">
+                    <button id="zoom-out" class="icon-btn" type="button" title="Уменьшить" aria-label="Уменьшить">−</button>
+                    <span id="zoom-level" class="zoom-level">100%</span>
+                    <button id="zoom-in" class="icon-btn" type="button" title="Увеличить" aria-label="Увеличить">+</button>
+                    <button id="zoom-reset" class="btn btn-secondary" type="button">Сбросить</button>
+                    <button id="lightbox-close" class="icon-btn" type="button" title="Закрыть (Esc)" aria-label="Закрыть">×</button>
+                </div>
+            </div>
+
+            <div id="lightbox-viewport" class="lightbox-viewport">
+                <img id="lightbox-image" class="lightbox-image" alt="" draggable="false">
+
+                <button id="photo-prev" class="photo-nav photo-nav-prev" type="button"
+                        title="Предыдущее фото (←)" aria-label="Предыдущее фото" hidden>‹</button>
+                <button id="photo-next" class="photo-nav photo-nav-next" type="button"
+                        title="Следующее фото (→)" aria-label="Следующее фото" hidden>›</button>
+
+                <div id="lightbox-status" class="lightbox-status">Загрузка…</div>
+
+                <button id="photo-fullscreen" class="photo-fullscreen-btn" type="button"
+                        title="На весь экран" aria-label="Открыть фото на весь экран">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" aria-hidden="true">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+                        <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
+                        <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
+                        <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="lightbox-captions">
+                <label class="caption-field">
+                    <span class="caption-label">Ручное описание</span>
+                    <textarea id="manual-caption" class="caption-input" rows="3" maxlength="5000"
+                              placeholder="Введите описание…"></textarea>
+                </label>
+                <div class="caption-field">
+                    <span class="caption-label">Автоматическое описание</span>
+                    <div id="auto-caption" class="caption-readonly">—</div>
+                </div>
+                <div class="caption-footer">
+                    <span id="caption-status" class="caption-status" role="status"></span>
+                    <button id="save-caption" class="btn" type="button">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js?v=7"></script>
 </body>
 </html>
