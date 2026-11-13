@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 import config
 from db.database import Database
@@ -27,11 +28,12 @@ class CachedStaticFiles(StaticFiles):
         return response
 
 
-# Раздача фронтенд-статики (CSS, JS). Небольшой max-age, чтобы правки
-# в интерфейсе подхватывались без ручной очистки кэша браузера.
+# Раздача фронтенд-статики (CSS, JS). Браузер каждый раз проверяет
+# актуальность файлов (обычно получает быстрый 304), зато правки интерфейса
+# видны сразу без ручной очистки кэша.
 app.mount(
     "/static",
-    CachedStaticFiles(directory="ui/static", cache_control="public, max-age=3600"),
+    CachedStaticFiles(directory="ui/static", cache_control="no-cache"),
     name="static",
 )
 
@@ -46,10 +48,31 @@ app.mount(
 templates = Jinja2Templates(directory="ui/templates")
 
 
+class PhotoCaptionUpdate(BaseModel):
+    manual_caption: str | None = None
+
+
+def photo_to_dict(photo) -> dict:
+    """Преобразует Row из sqlite3 в JSON-совместимый dict."""
+    return {
+        "id": photo["id"],
+        "relative_path": photo["relative_path"],
+        "is_processed": bool(photo["is_processed"]),
+        "auto_caption": photo["auto_caption"],
+        "manual_caption": photo["manual_caption"],
+    }
+
+
 @app.get("/")
 def read_root(request: Request):
     """Главная страница альбома."""
-    return templates.TemplateResponse(name="index.html", request=request)
+    # HTML не кэшируем, чтобы после обновления приложения браузер сразу
+    # подхватывал новые версии CSS/JS.
+    return templates.TemplateResponse(
+        name="index.html",
+        request=request,
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 @app.get("/api/browse")
@@ -61,24 +84,36 @@ def browse(path: str = ""):
     clean_path = path.strip("/")
     subfolders = db.get_subfolders(current_dir=clean_path)
     photos = db.get_photos_in_folder(parent_dir=clean_path)
-    
-    # Преобразуем Row-объекты sqlite3 в обычные dict
-    photos_data = [
-        {
-            "id": p["id"],
-            "relative_path": p["relative_path"],
-            "is_processed": bool(p["is_processed"]),
-            "auto_caption": p["auto_caption"],
-            "manual_caption": p["manual_caption"],
-        }
-        for p in photos
-    ]
 
     return {
         "current_path": clean_path,
         "subfolders": subfolders,
-        "photos": photos_data,
+        "photos": [photo_to_dict(photo) for photo in photos],
     }
+
+
+@app.get("/api/photos/{photo_id}")
+def get_photo(photo_id: int):
+    """Возвращает фото и его описания по id."""
+    photo = db.get_photo(photo_id)
+    if photo is None:
+        raise HTTPException(status_code=404, detail="Фото не найдено")
+    return photo_to_dict(photo)
+
+
+@app.patch("/api/photos/{photo_id}")
+def update_photo_caption(photo_id: int, payload: PhotoCaptionUpdate):
+    """Обновляет ручное описание фото. Пустая строка очищает описание."""
+    caption = payload.manual_caption
+    if caption is not None:
+        caption = caption.strip() or None
+        if len(caption or "") > 5000:
+            raise HTTPException(status_code=422, detail="Слишком длинное описание")
+
+    photo = db.update_manual_caption(photo_id, caption)
+    if photo is None:
+        raise HTTPException(status_code=404, detail="Фото не найдено")
+    return photo_to_dict(photo)
 
 
 @app.get("/thumb/{size}/{path:path}")
