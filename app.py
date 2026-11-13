@@ -1,22 +1,46 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse
 
 import config
 from db.database import Database
 from services.scanner import scan_photos
+from services.thumbnails import ThumbnailError, get_thumbnail
 
 app = FastAPI(title="Smart Album")
 
 # Инициализация базы данных
 db = Database(str(config.DB_PATH))
 
-# Раздача фронтенд-статики (CSS, JS)
-app.mount("/static", StaticFiles(directory="ui/static"), name="static")
+
+class CachedStaticFiles(StaticFiles):
+    """Статика с заголовком кэширования, чтобы браузер не перезапрашивал файлы."""
+
+    def __init__(self, *args, cache_control: str = "public, max-age=86400", **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cache_control = cache_control
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers.setdefault("Cache-Control", self.cache_control)
+        return response
+
+
+# Раздача фронтенд-статики (CSS, JS). Небольшой max-age, чтобы правки
+# в интерфейсе подхватывались без ручной очистки кэша браузера.
+app.mount(
+    "/static",
+    CachedStaticFiles(directory="ui/static", cache_control="public, max-age=3600"),
+    name="static",
+)
 
 # Раздача медиа-файлов (фотографий) напрямую с диска
-app.mount("/media", StaticFiles(directory=str(config.PHOTOS_DIR)), name="media")
+app.mount(
+    "/media",
+    CachedStaticFiles(directory=str(config.PHOTOS_DIR)),
+    name="media",
+)
 
 # Шаблоны HTML
 templates = Jinja2Templates(directory="ui/templates")
@@ -55,6 +79,33 @@ def browse(path: str = ""):
         "subfolders": subfolders,
         "photos": photos_data,
     }
+
+
+@app.get("/thumb/{size}/{path:path}")
+def get_photo_thumbnail(size: int, path: str):
+    """
+    Отдает маленькое WebP-превью фотографии.
+
+    Размер ограничен списком config.THUMB_SIZES, чтобы нельзя было
+    запросить произвольную (и очень тяжелую) миниатюру.
+    """
+    if size not in config.THUMB_SIZES:
+        raise HTTPException(status_code=404, detail="Неизвестный размер превью")
+
+    try:
+        thumbnail = get_thumbnail(path, size)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Фото не найдено")
+    except ThumbnailError:
+        raise HTTPException(status_code=415, detail="Не удалось создать превью")
+
+    return FileResponse(
+        thumbnail,
+        media_type="image/webp",
+        headers={
+            "Cache-Control": f"public, max-age={config.THUMB_MAX_AGE}",
+        },
+    )
 
 
 @app.get("/api/stats")

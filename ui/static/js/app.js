@@ -72,22 +72,39 @@ function renderFolders(subfolders, parentPath) {
     });
 }
 
+// Кодируем каждый сегмент пути отдельно: файлы с #, ? или пробелами
+// в имени иначе ломали бы URL.
+function encodePath(path) {
+    return path.split("/").map(encodeURIComponent).join("/");
+}
+
 function renderPhotos(photos) {
     const container = document.getElementById("photos-container");
     container.innerHTML = "";
 
-    photos.forEach((photo) => {
+    photos.forEach((photo, index) => {
         const card = document.createElement("div");
         card.className = "photo-card";
-        
-        // Фотографии запрашиваются через роут /media/
-        const imgSrc = `/media/${encodeURI(photo.relative_path)}`;
-        const caption = photo.manual_caption || photo.auto_caption || "Без описания";
 
-        card.innerHTML = `
-            <img class="photo-img" src="${imgSrc}" loading="lazy" alt="${photo.relative_path}">
-            <div class="photo-info">${caption}</div>
-        `;
+        // В сетке показываем маленькое готовое превью (WebP), а не оригинал
+        // на 4–20 МБ: именно это и было причиной медленной загрузки.
+        const img = document.createElement("img");
+        img.className = "photo-img";
+        img.src = `/thumb/480/${encodePath(photo.relative_path)}`;
+        img.width = 480;
+        img.height = 270;
+        img.decoding = "async";
+        img.alt = photo.manual_caption || photo.auto_caption || photo.relative_path;
+        img.loading = index < 4 ? "eager" : "lazy";
+        if (index < 4) {
+            img.fetchPriority = "high";
+        }
+
+        const info = document.createElement("div");
+        info.className = "photo-info";
+        info.textContent = photo.manual_caption || photo.auto_caption || "Без описания";
+
+        card.append(img, info);
         container.appendChild(card);
     });
 }

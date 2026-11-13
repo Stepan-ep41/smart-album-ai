@@ -71,7 +71,15 @@ class Database:
 
     def get_photos_in_folder(self, parent_dir: str = "") -> List[sqlite3.Row]:
         """Мгновенно возвращает фото, лежащие непосредственно в указанной папке."""
-        query = "SELECT * FROM photos WHERE parent_dir = ?"
+        # Не читаем embedding (BLOB) и другие тяжелые колонки: для сетки
+        # превью нужны только метаданные.
+        query = """
+        SELECT id, relative_path, parent_dir, is_processed,
+               auto_caption, manual_caption
+        FROM photos
+        WHERE parent_dir = ?
+        ORDER BY relative_path
+        """
         with self._get_connection() as conn:
             return conn.execute(query, (parent_dir,)).fetchall()
 
