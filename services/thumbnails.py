@@ -13,6 +13,8 @@ from pathlib import Path
 
 from PIL import Image, ImageOps
 
+import hashlib
+
 import config
 
 
@@ -57,8 +59,11 @@ def thumbnail_path(relative_path: str, size: int) -> Path:
     с одинаковым именем, но разным расширением, не перезаписывали друг друга.
     """
     relative = Path(relative_path)
+    folder_norm = str(config.PHOTOS_DIR).lower() if os.name == "nt" else str(config.PHOTOS_DIR)
+    folder_hash = hashlib.sha256(folder_norm.encode("utf-8")).hexdigest()[:10]
     return (
         config.THUMBS_DIR
+        / folder_hash
         / str(size)
         / relative.parent
         / f"{relative.name}.webp"

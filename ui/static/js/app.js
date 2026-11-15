@@ -546,10 +546,14 @@ async function saveCaption() {
 
         const updated = await res.json();
         currentPhoto = updated;
+        if (currentPhotoList[currentPhotoIndex]) {
+            currentPhotoList[currentPhotoIndex] = updated;
+        }
         manualCaptionInput.value = updated.manual_caption || "";
         captionDirty = false;
         setCaptionStatus("Сохранено");
         captionStatusTimer = setTimeout(clearCaptionStatus, 2500);
+        fetchStats();
     } catch (err) {
         console.error("Не удалось сохранить описание:", err);
         setCaptionStatus("Не удалось сохранить", true);
@@ -725,6 +729,14 @@ lightboxImage.addEventListener("dblclick", () => {
 });
 
 document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+        const modal = document.getElementById("settings-modal");
+        if (modal && !modal.hidden) {
+            closeSettingsModal();
+            return;
+        }
+    }
+
     if (lightbox.hidden) return;
 
     if (event.key === "Escape") {
@@ -796,20 +808,199 @@ window.addEventListener("resize", () => {
     }
 });
 
-// Кнопка пересканирования
-document.getElementById("btn-scan").onclick = async () => {
-    const btn = document.getElementById("btn-scan");
-    btn.disabled = true;
-    btn.innerText = "Сканирование...";
-    try {
-        await fetch("/api/scan", { method: "POST" });
-        await fetchStats();
-        await loadFolder(currentPath);
-    } finally {
-        btn.disabled = false;
-        btn.innerText = "Пересканировать папку";
+// --- Панель инструментов: анализ фото ---
+
+/**
+ * Функция анализа фотографий (пока без действия, заглушка).
+ */
+function analyzePhotos() {
+    console.log("Кнопка 'Проанализировать фото' нажата (функция пока не выполняет действий)");
+}
+
+document.getElementById("btn-analyze")?.addEventListener("click", analyzePhotos);
+
+// --- Окно настроек ---
+
+const settingsModal = document.getElementById("settings-modal");
+const btnSettings = document.getElementById("btn-settings");
+const settingsPhotosDir = document.getElementById("settings-photos-dir");
+const settingsDbInfo = document.getElementById("settings-db-info");
+const settingsStatus = document.getElementById("settings-status");
+const btnModalScan = document.getElementById("btn-modal-scan");
+
+function openSettingsModal() {
+    settingsModal.hidden = false;
+    settingsStatus.className = "settings-status";
+    settingsStatus.style.display = "none";
+    settingsStatus.textContent = "";
+
+    fetch("/api/settings")
+        .then((res) => res.json())
+        .then((data) => {
+            if (data.photos_dir) {
+                settingsPhotosDir.value = data.photos_dir;
+            }
+            if (data.db_path) {
+                settingsDbInfo.textContent = `База данных: ${data.db_path}`;
+            }
+        })
+        .catch((err) => {
+            console.error("Ошибка загрузки настроек:", err);
+        });
+}
+
+function closeSettingsModal() {
+    settingsModal.hidden = true;
+}
+
+btnSettings?.addEventListener("click", openSettingsModal);
+
+document.querySelectorAll("[data-modal-close]").forEach((el) => {
+    el.addEventListener("click", closeSettingsModal);
+});
+
+btnModalScan?.addEventListener("click", async () => {
+    const photosDir = settingsPhotosDir.value.trim();
+    if (!photosDir) {
+        settingsStatus.className = "settings-status error";
+        settingsStatus.textContent = "Пожалуйста, укажите путь к папке с фотографиями.";
+        settingsStatus.style.display = "block";
+        return;
     }
-};
+
+    btnModalScan.disabled = true;
+    btnModalScan.innerText = "Сканирование...";
+    settingsStatus.className = "settings-status info";
+    settingsStatus.textContent = "Сканирование директории и синхронизация базы данных...";
+    settingsStatus.style.display = "block";
+
+    try {
+        const res = await fetch("/api/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ photos_dir: photosDir }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.detail || "Ошибка сканирования");
+        }
+
+        const mergeMsg = data.merged
+            ? "Старая база данных успешно слита с новыми фото (старые записи сохранены)."
+            : "Создана новая база данных для указанной папки.";
+
+        settingsStatus.className = "settings-status success";
+        settingsStatus.textContent = `${mergeMsg} Добавлено новых фото: ${data.added}. Всего в базе: ${data.stats.total}.`;
+        settingsStatus.style.display = "block";
+
+        if (data.db_path) {
+            settingsDbInfo.textContent = `База данных: ${data.db_path}`;
+        }
+
+        await fetchStats();
+        if (isSearchActive) {
+            clearSearch();
+        } else {
+            await loadFolder("");
+        }
+    } catch (err) {
+        settingsStatus.className = "settings-status error";
+        settingsStatus.textContent = `Ошибка: ${err.message}`;
+        settingsStatus.style.display = "block";
+    } finally {
+        btnModalScan.disabled = false;
+        btnModalScan.innerText = "Просканировать папку";
+    }
+});
+
+// --- Поиск по описанию ---
+
+const searchInput = document.getElementById("search-input");
+const searchClearBtn = document.getElementById("search-clear");
+let isSearchActive = false;
+let searchDebounceTimer = null;
+
+async function performSearch(query) {
+    const cleanQuery = query.trim();
+    if (!cleanQuery) {
+        clearSearch();
+        return;
+    }
+
+    isSearchActive = true;
+    renderSearchBreadcrumbs(cleanQuery);
+
+    try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(cleanQuery)}`);
+        const data = await res.json();
+
+        // Скрываем сетку папок в режиме поиска
+        const foldersContainer = document.getElementById("folders-container");
+        foldersContainer.innerHTML = "";
+
+        renderPhotos(data.photos);
+
+        const emptyState = document.getElementById("empty-state");
+        if (data.photos.length === 0) {
+            emptyState.textContent = `По запросу «${cleanQuery}» подходящих фото не найдено.`;
+            emptyState.style.display = "block";
+        } else {
+            emptyState.style.display = "none";
+        }
+    } catch (err) {
+        console.error("Ошибка поиска:", err);
+    }
+}
+
+function renderSearchBreadcrumbs(query) {
+    const container = document.getElementById("breadcrumbs");
+    container.innerHTML = "";
+
+    const rootLink = document.createElement("a");
+    rootLink.innerText = "Корень альбома";
+    rootLink.onclick = () => {
+        clearSearch();
+    };
+    container.appendChild(rootLink);
+
+    container.appendChild(document.createTextNode(` / Результаты поиска «${query}»`));
+}
+
+function clearSearch() {
+    isSearchActive = false;
+    searchInput.value = "";
+    searchClearBtn.hidden = true;
+    loadFolder(currentPath);
+}
+
+searchInput?.addEventListener("input", (e) => {
+    const val = e.target.value;
+    searchClearBtn.hidden = !val;
+
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+        if (val.trim()) {
+            performSearch(val);
+        } else if (isSearchActive) {
+            clearSearch();
+        }
+    }, 280);
+});
+
+searchInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+        clearSearch();
+        searchInput.blur();
+    } else if (e.key === "Enter") {
+        clearTimeout(searchDebounceTimer);
+        performSearch(searchInput.value);
+    }
+});
+
+searchClearBtn?.addEventListener("click", () => {
+    clearSearch();
+});
 
 // Первый запуск
 fetchStats();
